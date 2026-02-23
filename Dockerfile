@@ -1,27 +1,9 @@
 FROM python:3.11-slim
 
-# 安装 MeCab 和词典
-RUN apt-get update && apt-get install -y \
-    mecab \
-    mecab-ipadic \
-    libmecab-dev \
-    build-essential \
-    git \
-    curl \
-    xz-utils \
-    && rm -rf /var/lib/apt/lists/*
-
-# 安装 mecab-ipadic-neologd
-WORKDIR /tmp
-RUN git clone --depth 1 https://github.com/neologd/mecab-ipadic-neologd.git \
-    && cd mecab-ipadic-neologd \
-    && ./bin/install-mecab-ipadic-neologd -n -y \
-    && rm -rf /tmp/mecab-ipadic-neologd
-
-# 设置工作目录
+# 仅需安装基础依赖，无需编译 MeCab
 WORKDIR /app
 
-# 安装 Python 依赖
+# 安装 Python 依赖（fugashi 包含预编译 wheel）
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
