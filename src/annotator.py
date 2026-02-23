@@ -3,7 +3,9 @@
 """
 
 from typing import List, Optional
+import os
 import jaconv
+import unidic
 from fugashi import Tagger
 
 from .models import WordSegment, AnnotationResult, Source
@@ -26,9 +28,13 @@ class JapaneseAnnotator:
         Args:
             cache_client: Redis 客户端（可选）
         """
-        # 使用 UniDic-lite（轻量版，快速启动）
-        # 如需完整版：Tagger('-d /path/to/unidic')
-        self.tagger = Tagger()
+        # 使用完整版 UniDic 词典
+        dicdir = unidic.DICDIR
+        if not dicdir or not os.path.isdir(dicdir):
+            raise RuntimeError(
+                "UniDic dictionary not found. Run `python -m unidic download` first."
+            )
+        self.tagger = Tagger(f'-r "{os.devnull}" -d "{dicdir}"')
         self.cache = cache_client
     
     def annotate(self, text: str) -> AnnotationResult:

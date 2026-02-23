@@ -6,6 +6,7 @@ WORKDIR /app
 # 安装 Python 依赖（fugashi 包含预编译 wheel）
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m unidic download
 
 # 复制应用代码
 COPY . .
