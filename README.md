@@ -25,7 +25,7 @@ curl -X POST http://localhost:8080/annotate \
 
 - **Python**: 3.11+
 - **分词引擎**: fugashi (Cython MeCab wrapper)
-- **词典**: UniDic-lite (轻量) / UniDic (完整)
+- **词典**: UniDic (完整)
 - **缓存**: Redis
 - **API**: Flask
 
@@ -34,6 +34,9 @@ curl -X POST http://localhost:8080/annotate \
 ```bash
 # 安装依赖
 pip install -r requirements.txt
+
+# 下载完整版 UniDic 词典（首次安装）
+python -m unidic download
 
 # 运行测试
 pytest

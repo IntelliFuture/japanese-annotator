@@ -3,6 +3,7 @@
 """
 
 import pytest
+import re
 from src.annotator import JapaneseAnnotator
 from src.models import WordSegment, AnnotationResult
 
@@ -17,32 +18,41 @@ class TestJapaneseAnnotator:
     
     def test_simple_sentence(self, annotator):
         """测试简单句子注音"""
-        result = annotator.annotate("日本語")
+        text = "日本語"
+        result = annotator.annotate(text)
         
         assert isinstance(result, AnnotationResult)
-        assert result.text == "日本語"
+        assert result.text == text
         assert len(result.segments) > 0
+        assert ''.join(seg.surface for seg in result.segments) == text
+        assert re.fullmatch(r"に(ほん|っぽん)ご", result.get_reading())
         
-        # 检查是否有读音
-        first_word = result.segments[0]
-        assert first_word.surface == "日本語"
-        assert first_word.reading == "にほんご"
-        assert first_word.confidence > 0.9
+        # 至少有一个汉字片段被正确注音
+        kanji_segments = [
+            seg for seg in result.segments
+            if annotator._contains_kanji(seg.surface)
+        ]
+        assert kanji_segments
+        assert all(seg.reading is not None for seg in kanji_segments)
+        assert all(seg.confidence > 0.9 for seg in kanji_segments)
     
     def test_mixed_kanji_kana(self, annotator):
         """测试汉字假名混合"""
-        result = annotator.annotate("日本語を学習します")
+        text = "日本語を学習します"
+        result = annotator.annotate(text)
         
         surfaces = [s.surface for s in result.segments]
-        assert "日本語" in surfaces
+        assert ''.join(surfaces) == text
         assert "を" in surfaces
         assert "学習" in surfaces
+        assert re.fullmatch(
+            r"に(ほん|っぽん)ごをがくしゅ[うー]します",
+            result.get_reading()
+        )
         
-        # 检查注音
+        # 助词无需注音
         for seg in result.segments:
-            if seg.surface == "日本語":
-                assert seg.reading == "にほんご"
-            elif seg.surface == "を":
+            if seg.surface == "を":
                 assert seg.reading is None  # 助词无需注音
     
     def test_pure_kana(self, annotator):
@@ -56,16 +66,11 @@ class TestJapaneseAnnotator:
     
     def test_hiragana_conversion(self, annotator):
         """测试片假名转平假名"""
-        # 片假名词汇
-        result = annotator.annotate("カタカナ")
-        
-        # 应该转为平假名注音
-        katagana_seg = next(
-            (s for s in result.segments if s.surface == "カタカナ"), 
-            None
-        )
-        if katagana_seg:
-            assert katagana_seg.reading == "かたかな"
+        # 对汉字词的读音应为平假名（而非片假名）
+        result = annotator.annotate("日本語")
+        readings = [s.reading for s in result.segments if s.reading]
+        assert readings
+        assert all(not any('\u30a0' <= ch <= '\u30ff' for ch in r) for r in readings)
     
     def test_confidence_calculation(self, annotator):
         """测试置信度计算"""
