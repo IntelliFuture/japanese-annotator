@@ -21,12 +21,13 @@ class JapaneseAnnotator:
     3. LLM 校验（兜底）
     """
     
-    def __init__(self, cache_client=None):
+    def __init__(self, cache_client=None, user_dic_path: Optional[str] = None):
         """
         初始化注音服务
         
         Args:
             cache_client: Redis 客户端（可选）
+            user_dic_path: MeCab 用户词典路径（可选）
         """
         # 使用完整版 UniDic 词典
         dicdir = unidic.DICDIR
@@ -34,7 +35,30 @@ class JapaneseAnnotator:
             raise RuntimeError(
                 "UniDic dictionary not found. Run `python -m unidic download` first."
             )
-        self.tagger = Tagger(f'-r "{os.devnull}" -d "{dicdir}"')
+        mecab_args = [
+            f'-r "{self._quote_mecab_path(os.devnull)}"',
+            f'-d "{self._quote_mecab_path(dicdir)}"',
+        ]
+
+        configured_user_dic = user_dic_path or os.getenv("MECAB_USER_DIC")
+        if not configured_user_dic:
+            default_user_dic = self._default_user_dic_path()
+            if os.path.isfile(default_user_dic):
+                configured_user_dic = default_user_dic
+
+        if configured_user_dic:
+            expanded_user_dic = os.path.abspath(
+                os.path.expanduser(configured_user_dic)
+            )
+            if not os.path.isfile(expanded_user_dic):
+                raise RuntimeError(
+                    f"User dictionary not found: {expanded_user_dic}"
+                )
+            mecab_args.append(
+                f'-u "{self._quote_mecab_path(expanded_user_dic)}"'
+            )
+
+        self.tagger = Tagger(" ".join(mecab_args))
         self.cache = cache_client
     
     def annotate(self, text: str) -> AnnotationResult:
@@ -94,6 +118,9 @@ class JapaneseAnnotator:
             if hasattr(word.feature, 'pron') and word.feature.pron:
                 # 片假名转平假名
                 reading = jaconv.kata2hira(word.feature.pron)
+            elif hasattr(word.feature, 'kana') and word.feature.kana:
+                # 某些用户词典条目可能只提供 kana 字段
+                reading = jaconv.kata2hira(word.feature.kana)
             
             # 判断是否包含汉字
             # 如果读音和表层相同，说明是假名，无需注音
@@ -153,3 +180,12 @@ class JapaneseAnnotator:
             return
         # TODO: 实现 Redis 缓存写入
         pass
+
+    def _quote_mecab_path(self, path: str) -> str:
+        """转义用于 MeCab 参数字符串的路径。"""
+        return path.replace("\\", "\\\\").replace('"', '\\"')
+
+    def _default_user_dic_path(self) -> str:
+        """项目默认用户词典路径。"""
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        return os.path.join(project_root, "dict", "user.dic")
