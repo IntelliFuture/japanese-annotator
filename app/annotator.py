@@ -57,7 +57,7 @@ class Annotator:
         config = None
         if user_dicts:
             config = json.dumps({"userDict": user_dicts})
-        dic = sudachipy.Dictionary(dict="full", config_string=config)
+        dic = sudachipy.Dictionary(dict="full", config=config)
         self._tokenizer = dic.create()
 
     def reload_dict(self) -> None:
