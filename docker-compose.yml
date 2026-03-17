@@ -1,0 +1,10 @@
+services:
+  annotator:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./user_dict:/app/user_dict
+    environment:
+      - USER_DICT_DIR=/app/user_dict
+    restart: unless-stopped
