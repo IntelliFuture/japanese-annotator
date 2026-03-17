@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import glob
+import json
 import os
+from html import escape
 
 import sudachipy
 
@@ -23,8 +25,11 @@ def _kata_to_hira(text: str) -> str:
     result: list[str] = []
     for ch in text:
         cp = ord(ch)
-        # Katakana range: U+30A1 (ァ) to U+30F6 (ヶ), plus ヴ (U+30F4)
-        if 0x30A1 <= cp <= 0x30F6:
+        # Safe katakana range: U+30A1 (ァ) to U+30F4 (ヴ).
+        # Characters beyond ヴ (e.g. ヵ U+30F5, ヶ U+30F6) do not have
+        # direct hiragana equivalents at a simple codepoint offset, so
+        # they are left unchanged.
+        if 0x30A1 <= cp <= 0x30F4:
             result.append(chr(cp + _KATA_TO_HIRA_OFFSET))
         else:
             result.append(ch)
@@ -44,16 +49,15 @@ def _find_user_dicts() -> list[str]:
 
 class Annotator:
     def __init__(self) -> None:
-        self._tokenizer: sudachipy.Tokenizer | None = None
+        self._tokenizer: sudachipy.Tokenizer
         self._load_tokenizer()
 
     def _load_tokenizer(self) -> None:
         user_dicts = _find_user_dicts()
         config = None
         if user_dicts:
-            import json
             config = json.dumps({"userDict": user_dicts})
-        dic = sudachipy.Dictionary(dict="full", config_string=config) if config else sudachipy.Dictionary(dict="full")
+        dic = sudachipy.Dictionary(dict="full", config_string=config)
         self._tokenizer = dic.create()
 
     def reload_dict(self) -> None:
@@ -61,7 +65,7 @@ class Annotator:
         self._load_tokenizer()
 
     def annotate(self, text: str, mode: str = "C") -> AnnotateResponse:
-        split_mode = _SPLIT_MODE[mode.upper()]
+        split_mode = _SPLIT_MODE.get(mode.upper(), sudachipy.SplitMode.C)
         morphemes = self._tokenizer.tokenize(text, split_mode)
 
         tokens: list[TokenResult] = []
@@ -81,8 +85,10 @@ class Annotator:
             ))
 
             if _contains_kanji(surface) and reading_hira != surface:
-                ruby_parts.append(f"<ruby>{surface}<rt>{reading_hira}</rt></ruby>")
+                ruby_parts.append(
+                    f"<ruby>{escape(surface)}<rt>{escape(reading_hira)}</rt></ruby>"
+                )
             else:
-                ruby_parts.append(surface)
+                ruby_parts.append(escape(surface))
 
         return AnnotateResponse(tokens=tokens, ruby_html="".join(ruby_parts))

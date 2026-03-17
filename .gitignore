@@ -1,4 +1,6 @@
 .venv/
+venv/
+env/
 __pycache__/
 *.pyc
 *.pyo
@@ -8,3 +10,5 @@ user_dict/*.dic
 *.egg-info/
 dist/
 .DS_Store
+.idea/
+.vscode/
