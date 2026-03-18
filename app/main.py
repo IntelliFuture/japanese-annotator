@@ -21,12 +21,12 @@ def health() -> HealthResponse:
 
 @app.post("/annotate", response_model=AnnotateResponse)
 def annotate(req: AnnotateRequest) -> AnnotateResponse:
-    return annotator.annotate(req.text, req.mode)
+    return annotator.annotate(req.text, req.mode, req.normalize)
 
 
 @app.post("/annotate/batch", response_model=BatchAnnotateResponse)
 def annotate_batch(req: BatchAnnotateRequest) -> BatchAnnotateResponse:
-    results = [annotator.annotate(t, req.mode) for t in req.texts]
+    results = [annotator.annotate(t, req.mode, req.normalize) for t in req.texts]
     return BatchAnnotateResponse(results=results)
 
 
