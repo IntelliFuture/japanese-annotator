@@ -7,4 +7,6 @@ services:
       - ./user_dict:/app/user_dict
     environment:
       - USER_DICT_DIR=/app/user_dict
+      - APP_PORT=8000
+      - UVICORN_WORKERS=1
     restart: unless-stopped
