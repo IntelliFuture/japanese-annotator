@@ -7,8 +7,11 @@ from app.models import (
     BatchAnnotateRequest,
     BatchAnnotateResponse,
     HealthResponse,
+    NormalizeRequest,
+    NormalizeResponse,
     ReloadResponse,
 )
+from app.normalizer import normalize
 
 app = FastAPI(title="Japanese Annotator", version="1.0.0")
 annotator = Annotator()
@@ -19,14 +22,21 @@ def health() -> HealthResponse:
     return HealthResponse()
 
 
+@app.post("/normalize", response_model=NormalizeResponse)
+def normalize_text(req: NormalizeRequest) -> NormalizeResponse:
+    return NormalizeResponse(original=req.text, normalized=normalize(req.text))
+
+
 @app.post("/annotate", response_model=AnnotateResponse)
 def annotate(req: AnnotateRequest) -> AnnotateResponse:
-    return annotator.annotate(req.text, req.mode)
+    text = normalize(req.text) if req.pre_normalize else req.text
+    return annotator.annotate(text, req.mode)
 
 
 @app.post("/annotate/batch", response_model=BatchAnnotateResponse)
 def annotate_batch(req: BatchAnnotateRequest) -> BatchAnnotateResponse:
-    results = [annotator.annotate(t, req.mode) for t in req.texts]
+    texts = [normalize(t) for t in req.texts] if req.pre_normalize else req.texts
+    results = [annotator.annotate(t, req.mode) for t in texts]
     return BatchAnnotateResponse(results=results)
 
 

@@ -3,14 +3,25 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
+class NormalizeRequest(BaseModel):
+    text: str
+
+
+class NormalizeResponse(BaseModel):
+    original: str
+    normalized: str
+
+
 class AnnotateRequest(BaseModel):
     text: str
     mode: str = Field(default="C", pattern="^[ABCabc]$")
+    pre_normalize: bool = Field(default=False, description="If true, normalize text before tokenization")
 
 
 class BatchAnnotateRequest(BaseModel):
     texts: list[str]
     mode: str = Field(default="C", pattern="^[ABCabc]$")
+    pre_normalize: bool = Field(default=False, description="If true, normalize texts before tokenization")
 
 
 class TokenResult(BaseModel):
