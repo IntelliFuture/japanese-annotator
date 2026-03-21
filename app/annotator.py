@@ -64,7 +64,7 @@ class Annotator:
         """Reload tokenizer with updated user dictionaries."""
         self._load_tokenizer()
 
-    def annotate(self, text: str, mode: str = "C", normalize: bool = False) -> AnnotateResponse:
+    def annotate(self, text: str, mode: str = "C") -> AnnotateResponse:
         split_mode = _SPLIT_MODE.get(mode.upper(), sudachipy.SplitMode.C)
         morphemes = self._tokenizer.tokenize(text, split_mode)
 
@@ -74,25 +74,21 @@ class Annotator:
         for m in morphemes:
             surface = m.surface()
             reading_hira = _kata_to_hira(m.reading_form())
-            normalized = m.normalized_form()
+            lemma = m.normalized_form()
             pos = m.part_of_speech()[0]
 
             tokens.append(TokenResult(
                 surface=surface,
                 reading=reading_hira,
-                normalized=normalized,
+                lemma=lemma,
                 pos=pos,
             ))
 
-            # When normalize=True, use normalized_form as display text in ruby_html.
-            # When normalize=False (default), preserve original surface so audio
-            # alignment positions remain valid.
-            display = normalized if normalize else surface
-            if _contains_kanji(display) and reading_hira != display:
+            if _contains_kanji(surface) and reading_hira != surface:
                 ruby_parts.append(
-                    f"<ruby>{escape(display)}<rt>{escape(reading_hira)}</rt></ruby>"
+                    f"<ruby>{escape(surface)}<rt>{escape(reading_hira)}</rt></ruby>"
                 )
             else:
-                ruby_parts.append(escape(display))
+                ruby_parts.append(escape(surface))
 
         return AnnotateResponse(tokens=tokens, ruby_html="".join(ruby_parts))
