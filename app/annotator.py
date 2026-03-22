@@ -3,6 +3,7 @@ from __future__ import annotations
 import glob
 import json
 import os
+import re
 from html import escape
 
 import sudachipy
@@ -39,6 +40,58 @@ def _kata_to_hira(text: str) -> str:
 def _contains_kanji(text: str) -> bool:
     """Check if text contains any CJK Unified Ideographs (kanji)."""
     return any(0x4E00 <= ord(ch) <= 0x9FFF or 0x3400 <= ord(ch) <= 0x4DBF for ch in text)
+
+
+# Regex to split surface into alternating kanji/kana segments.
+_KANA_SPLIT_RE = re.compile(r'([\u3041-\u3096\u30A1-\u30FC]+)')
+
+
+def _split_furigana(surface: str, reading: str) -> list[tuple[str, str | None]]:
+    """Split surface into (text, reading|None) pairs, assigning reading only to kanji parts.
+
+    Example: 食べる (たべる) → [('食', 'た'), ('べる', None)]
+    """
+    if not _contains_kanji(surface):
+        return [(surface, None)]
+
+    segments = [s for s in _KANA_SPLIT_RE.split(surface) if s]
+    if len(segments) == 1:
+        # Pure kanji — whole reading applies
+        return [(surface, reading)]
+
+    result: list[tuple[str, str | None]] = []
+    remaining = reading
+
+    for i, seg in enumerate(segments):
+        if not _contains_kanji(seg):
+            # Kana segment — consume matching part from remaining reading
+            seg_hira = _kata_to_hira(seg)
+            idx = remaining.find(seg_hira)
+            if idx != -1:
+                remaining = remaining[idx + len(seg_hira):]
+            result.append((seg, None))
+        else:
+            # Kanji segment — find next kana boundary to determine its reading
+            next_kana_hira = None
+            for j in range(i + 1, len(segments)):
+                if not _contains_kanji(segments[j]):
+                    next_kana_hira = _kata_to_hira(segments[j])
+                    break
+
+            if next_kana_hira:
+                idx = remaining.find(next_kana_hira)
+                if idx != -1:
+                    result.append((seg, remaining[:idx]))
+                    remaining = remaining[idx:]
+                else:
+                    result.append((seg, remaining))
+                    remaining = ""
+            else:
+                # Last segment is kanji — all remaining reading is for it
+                result.append((seg, remaining))
+                remaining = ""
+
+    return result
 
 
 def _find_user_dicts() -> list[str]:
@@ -84,11 +137,12 @@ class Annotator:
                 pos=pos,
             ))
 
-            if _contains_kanji(surface) and reading_hira != surface:
-                ruby_parts.append(
-                    f"<ruby>{escape(surface)}<rt>{escape(reading_hira)}</rt></ruby>"
-                )
-            else:
-                ruby_parts.append(escape(surface))
+            for seg_text, seg_reading in _split_furigana(surface, reading_hira):
+                if seg_reading is not None:
+                    ruby_parts.append(
+                        f"<ruby>{escape(seg_text)}<rt>{escape(seg_reading)}</rt></ruby>"
+                    )
+                else:
+                    ruby_parts.append(escape(seg_text))
 
         return AnnotateResponse(tokens=tokens, ruby_html="".join(ruby_parts))
