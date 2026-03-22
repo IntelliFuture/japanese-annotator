@@ -29,19 +29,17 @@ _CJK_EXT_A_END = 0x4DBF
 
 _KATA_TO_HIRA_OFFSET = ord("ぁ") - ord("ァ")
 
+_KATA_HIRA_TABLE = str.maketrans(
+    "".join(chr(c) for c in range(_KATAKANA_START, _KATAKANA_END + 1)),
+    "".join(chr(c + _KATA_TO_HIRA_OFFSET) for c in range(_KATAKANA_START, _KATAKANA_END + 1)),
+)
+
 USER_DICT_DIR = os.environ.get("USER_DICT_DIR", "user_dict")
 
 
 def _kata_to_hira(text: str) -> str:
     """Convert katakana to hiragana."""
-    result: list[str] = []
-    for ch in text:
-        cp = ord(ch)
-        if _KATAKANA_START <= cp <= _KATAKANA_END:
-            result.append(chr(cp + _KATA_TO_HIRA_OFFSET))
-        else:
-            result.append(ch)
-    return "".join(result)
+    return text.translate(_KATA_HIRA_TABLE)
 
 
 def _contains_kanji(text: str) -> bool:
@@ -143,7 +141,7 @@ class Annotator:
         self._load_tokenizer()
 
     def annotate(self, text: str, mode: str = "C") -> AnnotateResponse:
-        split_mode = _SPLIT_MODE[mode.upper()]
+        split_mode = _SPLIT_MODE.get(mode.upper(), sudachipy.SplitMode.C)
         morphemes = self._tokenizer.tokenize(text, split_mode)
 
         tokens: list[TokenResult] = []

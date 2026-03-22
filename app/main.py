@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from app.annotator import Annotator
@@ -58,5 +58,5 @@ def dict_reload() -> ReloadResponse:
         annotator.reload_dict()
     except Exception:
         logger.exception("Failed to reload dictionary")
-        return ReloadResponse(status="error", message="Dictionary reload failed")
+        raise HTTPException(status_code=500, detail="Dictionary reload failed")
     return ReloadResponse(status="ok", message="Dictionary reloaded successfully")

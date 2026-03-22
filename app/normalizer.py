@@ -9,6 +9,16 @@ from __future__ import annotations
 import re
 import unicodedata
 
+_HYPHEN_RE = re.compile("[˗֊‐‑‒–⁃⁻₋−]+")
+_LONG_VOWEL_RE = re.compile("[﹣－ｰ—―─━]+")
+_TILDE_RE = re.compile("[~∼∾〜〰～]+")
+_MULTI_SPACE_RE = re.compile(r" {2,}")
+_CJK_SPACE_RE = re.compile(
+    r"([\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\u3400-\u4DBF])"
+    r" +"
+    r"([\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\u3400-\u4DBF])"
+)
+
 
 def normalize(text: str) -> str:
     """Apply lightweight normalization to Japanese text."""
@@ -20,27 +30,21 @@ def normalize(text: str) -> str:
     text = unicodedata.normalize("NFKC", text)
 
     # 2. Hyphen-like characters → standard hyphen (U+002D)
-    text = re.sub("[˗֊‐‑‒–⁃⁻₋−]+", "-", text)
+    text = _HYPHEN_RE.sub("-", text)
 
     # 3. Long vowel marks → ー
-    text = re.sub("[﹣－ｰ—―─━]+", "ー", text)
+    text = _LONG_VOWEL_RE.sub("ー", text)
 
     # 4. Remove tilde variants
-    text = re.sub("[~∼∾〜〰～]+", "", text)
+    text = _TILDE_RE.sub("", text)
 
     # 5. Full-width space → half-width
     text = text.replace("\u3000", " ")
 
     # 6. Collapse multiple spaces
-    text = re.sub(r" {2,}", " ", text)
+    text = _MULTI_SPACE_RE.sub(" ", text)
 
     # 7. Remove spaces between CJK characters
-    text = re.sub(
-        r"([\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\u3400-\u4DBF])"
-        r" +"
-        r"([\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\u3400-\u4DBF])",
-        r"\1\2",
-        text,
-    )
+    text = _CJK_SPACE_RE.sub(r"\1\2", text)
 
     return text.strip()
