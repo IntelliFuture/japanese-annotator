@@ -1,18 +1,17 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
-# 仅需安装基础依赖，无需编译 MeCab
 WORKDIR /app
 
-# 安装 Python 依赖（fugashi 包含预编译 wheel）
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-RUN python -m unidic download
 
-# 复制应用代码
-COPY . .
+COPY app/ app/
+COPY user_dict/ user_dict/
 
-# 暴露端口
-EXPOSE 8080
+RUN useradd -r -s /usr/sbin/nologin appuser \
+    && chown -R appuser:appuser /app
+USER appuser
 
-# 运行应用
-CMD ["python", "-m", "src.main"]
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
