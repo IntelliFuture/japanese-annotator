@@ -8,7 +8,8 @@
 - SudachiDict-full 词典，覆盖人名/地名/新词
 - 支持 A/B/C 三种分词粒度
 - 片假名读音自动转平假名输出
-- 生成 HTML `<ruby>` 标注格式
+- 汉字级别精确 `<ruby>` 注音（送假名不包裹，如 `食べる` → `<ruby>食<rt>た</rt></ruby>べる`）
+- 文本正规化（全角→半角、半角片假名→全角等）
 - 支持自定义词典热重载（`user_dict/*.dic`）
 
 ## 快速开始
@@ -32,24 +33,37 @@ uvicorn app.main:app --reload
 
 ```json
 // Request
-{ "text": "東京都に住んでいます", "mode": "C" }
+{ "text": "東京都に住んでいます", "mode": "C", "pre_normalize": false }
 
 // Response
 {
   "tokens": [
-    { "surface": "東京都", "reading": "とうきょうと", "normalized": "東京都", "pos": "名詞" },
+    { "surface": "東京都", "reading": "とうきょうと", "lemma": "東京都", "pos": "名詞" },
     ...
   ],
-  "ruby_html": "<ruby>東京都<rt>とうきょうと</rt></ruby>に<ruby>住<rt>すん</rt></ruby>でいます"
+  "ruby_html": "<ruby>東京都<rt>とうきょうと</rt></ruby>に<ruby>住<rt>す</rt></ruby>んでいます"
 }
 ```
 
-**mode**: `A`（最小粒度）/ `B`（中间）/ `C`（最大，默认）
+- **mode**: `A`（最小粒度）/ `B`（中间）/ `C`（最大，默认）
+- **pre_normalize**: 分词前是否先正规化文本（默认 `false`）
 
 ### POST /annotate/batch
 
 ```json
-{ "texts": ["東京都に住んでいます", "日本語を勉強しています"], "mode": "C" }
+{ "texts": ["東京都に住んでいます", "日本語を勉強しています"], "mode": "C", "pre_normalize": false }
+```
+
+### POST /normalize
+
+文本正规化（全角数字/字母→半角、半角片假名→全角、CJK 间全角空格移除等）。
+
+```json
+// Request
+{ "text": "０１２ＡＢＣ" }
+
+// Response
+{ "original": "０１２ＡＢＣ", "normalized": "012ABC" }
 ```
 
 ### POST /dict/reload
