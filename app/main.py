@@ -1,4 +1,7 @@
-from fastapi import FastAPI
+import logging
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 from app.annotator import Annotator
 from app.models import (
@@ -13,8 +16,17 @@ from app.models import (
 )
 from app.normalizer import normalize
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="Japanese Annotator", version="1.0.0")
 annotator = Annotator()
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -42,5 +54,9 @@ def annotate_batch(req: BatchAnnotateRequest) -> BatchAnnotateResponse:
 
 @app.post("/dict/reload", response_model=ReloadResponse)
 def dict_reload() -> ReloadResponse:
-    annotator.reload_dict()
+    try:
+        annotator.reload_dict()
+    except Exception:
+        logger.exception("Failed to reload dictionary")
+        return ReloadResponse(status="error", message="Dictionary reload failed")
     return ReloadResponse(status="ok", message="Dictionary reloaded successfully")

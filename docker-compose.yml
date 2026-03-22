@@ -8,3 +8,8 @@ services:
     environment:
       - USER_DICT_DIR=/app/user_dict
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G

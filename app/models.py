@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+SplitModeType = Literal["A", "B", "C", "a", "b", "c"]
+
+MAX_TEXT_LENGTH = 50_000
+MAX_BATCH_SIZE = 100
 
 
 class NormalizeRequest(BaseModel):
-    text: str
+    text: str = Field(max_length=MAX_TEXT_LENGTH)
 
 
 class NormalizeResponse(BaseModel):
@@ -13,14 +20,14 @@ class NormalizeResponse(BaseModel):
 
 
 class AnnotateRequest(BaseModel):
-    text: str
-    mode: str = Field(default="C", pattern="^[ABCabc]$")
+    text: str = Field(max_length=MAX_TEXT_LENGTH)
+    mode: SplitModeType = "C"
     pre_normalize: bool = Field(default=False, description="If true, normalize text before tokenization")
 
 
 class BatchAnnotateRequest(BaseModel):
-    texts: list[str]
-    mode: str = Field(default="C", pattern="^[ABCabc]$")
+    texts: list[str] = Field(max_length=MAX_BATCH_SIZE)
+    mode: SplitModeType = "C"
     pre_normalize: bool = Field(default=False, description="If true, normalize texts before tokenization")
 
 

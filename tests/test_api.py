@@ -84,6 +84,22 @@ class TestBatchAnnotate:
         assert res.status_code == 200
         assert res.json()["results"] == []
 
+    def test_batch_pre_normalize(self):
+        """Batch with pre_normalize should normalize full-width chars."""
+        res = client.post("/annotate/batch", json={
+            "texts": ["０１２", "ＡＢＣ"],
+            "pre_normalize": True,
+        })
+        assert res.status_code == 200
+        results = res.json()["results"]
+        assert len(results) == 2
+        surfaces_0 = "".join(t["surface"] for t in results[0]["tokens"])
+        assert "０" not in surfaces_0
+
+    def test_batch_invalid_mode(self):
+        res = client.post("/annotate/batch", json={"texts": ["テスト"], "mode": "X"})
+        assert res.status_code == 422
+
 
 class TestNormalize:
     def test_fullwidth_to_halfwidth(self):
@@ -103,6 +119,36 @@ class TestNormalize:
         data = res.json()
         # CJK characters — space between them should be removed
         assert data["normalized"] == "東京都"
+
+
+class TestHtmlEscape:
+    def test_angle_brackets_escaped(self):
+        """Text containing <script> should be escaped in ruby_html."""
+        res = client.post("/annotate", json={"text": "<script>alert('xss')</script>"})
+        assert res.status_code == 200
+        html = res.json()["ruby_html"]
+        assert "<script>" not in html
+        assert "&lt;script&gt;" in html
+
+    def test_ampersand_escaped(self):
+        res = client.post("/annotate", json={"text": "A&B"})
+        assert res.status_code == 200
+        html = res.json()["ruby_html"]
+        assert "&amp;" in html
+
+
+class TestInputLimits:
+    def test_text_too_long(self):
+        res = client.post("/annotate", json={"text": "あ" * 50_001})
+        assert res.status_code == 422
+
+    def test_batch_too_many(self):
+        res = client.post("/annotate/batch", json={"texts": ["テスト"] * 101})
+        assert res.status_code == 422
+
+    def test_normalize_too_long(self):
+        res = client.post("/normalize", json={"text": "a" * 50_001})
+        assert res.status_code == 422
 
 
 class TestDictReload:
